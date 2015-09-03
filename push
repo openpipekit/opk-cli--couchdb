@@ -1,0 +1,126 @@
+#!/usr/bin/env node
+
+var split = require('split')
+var isJson = require('is-json')
+var moment = require('moment')
+var options = parseArgv(process.argv)
+var clc = require('cli-color')
+
+// If help flag is set, print help text and exit.
+if (options.hasOwnProperty('help')) {
+  console.log('./push')
+  console.log('  --username [account] Example: jansmith')
+  console.log('  --password [password] Example: foobar')
+  console.log('  --database <database name> Example: my_sensortag')
+  console.log('  --url <couchdb url> Example: janesmith.cloudant.com')
+  console.log('  --noTimestamp Prevent a timestamp from being added to your data')
+  console.log('  --verbose Use for debug output')
+  console.log('')
+  console.log('Usage: echo 42 | ./push --username=janesmith --password=foobar --database=my_sensortag --url=janesmith.cloudant.com')
+  console.log('Usage: echo \'{"foo":"bar"}\' | ./push --username=janesmith --password=foobar --database=my_sensortag --url=janesmith.cloudant.com')
+  console.log('')
+  process.exit(0)
+}
+
+// Generate the URL of the CouchDB
+if (options.url.substr(0,4) !== 'http') {
+  options.url = 'http://' + options.url
+}
+if (options.username && options.password) {
+  if (options.url.indexOf('https://') !== -1) {
+    options.url = 'https://' + options.username + ':' + options.password + '@' + options.url.substr(8, options.url.length)
+  }
+  else if (options.url.indexOf('http://') !== -1) {
+    options.url = 'http://' + options.username + ':' + options.password + '@' + options.url.substr(7, options.url.length)
+  }
+}
+log('options.url:')
+log(options.url)
+
+// Output any errors we receive from the pipe.
+process.stdin.on('error', function(e) {
+  console.log("error: "+e)
+})
+
+// As we get data in on the pipe, concatenate it onto data until a new line is detected at which point we push the data.
+var data 
+process.stdin.pipe(split())
+  .on('data', function (line) {
+    data = line
+    if (data !== '')
+      console.log(data)
+      push()
+  })
+
+// When we detect the process piping to this cli has exited, exitSignal is set to true and we also exit this process after sending data. 
+var exitSignal = false
+process.stdin.on('end', function() {
+  exitSignal = true 
+})
+
+function push() {
+
+  log('data:')
+  log(data)
+
+
+  // Prepare a CouchDB Doc
+  var doc 
+  var jsonFormatted = isJson(data)
+  if (jsonFormatted === true) {
+    doc = JSON.parse(data)
+  } 
+  else {
+    doc = {'value': data}
+  }
+  if (!options.noTimestamp) {
+    doc.timestamp = moment().format()
+  }
+  log('doc:')
+  log(doc)
+
+  // Save the CouchDB Doc
+  var nano = require('nano')(options.url)
+  database = nano.use(options.database)
+  database.insert(doc, function(err, body) {
+    if (err) {
+      console.log(err)
+      console.log(body)
+    }
+    log('body:')
+    log(body)
+    if (exitSignal === true) process.exit(0)
+  })
+
+}
+
+// This is the standard function for parsing process.argv. It will return
+// an object that where `--argumentName` is a property name and the
+// proceding argument is the value. If there is no proceeding value then
+// it will be interpreted as a boolean true.
+// @todo Consider argv-ee
+function parseArgv(argv) {
+  params = {}
+  argv.forEach(function(arg, i) {
+    if (arg.substr(0, 2) == '--') {
+      paramName = arg.substr(2, arg.length)
+      nextArg = argv[i+1]
+      if ((typeof nextArg == 'string' && nextArg.substr(0, 2) == '--') || nextArg == undefined) {
+        params[paramName] = true
+      }
+      else {
+        params[paramName] = nextArg
+      }
+    }
+  })
+  return params
+}
+
+// A log function that will only log if the --verbose flag is set
+function log(msg) {
+  if (typeof msg == 'object') msg = JSON.stringify(msg)
+  if (params.hasOwnProperty('verbose')) {
+    console.log(clc.red(msg))
+  }
+}
+

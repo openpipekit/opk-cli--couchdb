@@ -1,0 +1,35 @@
+{
+  "name": "opk-cli--couchdb",
+  "version": "0.0.0",
+  "description": "Command line client for pushing data to a CouchDB",
+  "main": "push",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "cli-color": "^1.0.0",
+    "is-json": "^1.2.5",
+    "moment": "^2.10.6",
+    "nano": "^6.1.5",
+    "split": "^1.0.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "push"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/openpipekit/opk-cli--couchdb.git"
+  },
+  "keywords": [
+    "iot",
+    "google-sheets",
+    "cloudstitch"
+  ],
+  "author": "R.J. Steinert",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/openpipekit/opk-cli--couchdb/issues"
+  },
+  "homepage": "https://github.com/openpipekit/opk-cli--couchdb#readme"
+}
